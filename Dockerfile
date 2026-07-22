@@ -14,7 +14,7 @@ COPY falcon-protos/ ./falcon-protos/
 COPY protos-proposed/ ./protos-proposed/
 COPY scripts/ ./scripts/
 
-RUN uv sync --frozen --all-extras
+RUN uv sync --frozen --extra dev --no-install-project
 
 # Compile protobufs into src/generated.
 COPY src/ ./src/
