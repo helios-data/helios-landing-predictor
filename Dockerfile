@@ -1,6 +1,8 @@
 # Helios LandingPredictor service image.
 FROM python:3.13-slim
 
+ENV UV_NO_SYNC=1
+
 # uv for dependency management (matches sibling repos).
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
