@@ -1,0 +1,9 @@
+{
+  "ports": [{"source": "8091", "target": "8091"}],
+  "devices": [],
+  "volumes": [
+    { "type": "file", "name": "/app/config/rocket_config.json", "source": "" }
+  ],
+  "flags": [],
+  "websites": ["http://localhost:8091/health"]
+}
