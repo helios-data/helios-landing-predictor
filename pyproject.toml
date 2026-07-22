@@ -1,0 +1,46 @@
+[project]
+name = "helios-landing-predictor"
+version = "0.1.0"
+description = "Continuously predicts the rocket's landing point and dispersion area during descent, publishing results as a Helios event."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+    "aiohttp>=3.10",
+    "betterproto2[all]>=0.9.1",
+    "helios-python-sdk",
+    # Optional debug/health HTTP surface (port 8091). Kept minimal.
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    # Proto toolchain for `make protos` (mirrors helios-python-sdk).
+    "betterproto2-compiler>=0.9.0",
+    "grpcio-tools>=1.66",
+]
+
+[tool.uv.sources]
+helios-python-sdk = { path = "helios-python-sdk", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

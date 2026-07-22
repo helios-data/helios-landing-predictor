@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Generated protobuf code (rebuilt via `make protos`)
+src/generated/
+
+# Local artifacts
+*.log
+.DS_Store
+
+# Claude files
+.claude/

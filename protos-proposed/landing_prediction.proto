@@ -1,0 +1,44 @@
+/*
+ * Landing-prediction event payloads, published by Helios.Services.LandingPredictor.
+ *
+ * Proposed here (not in falcon-protos) — see README "Coordination with other repos".
+ * Compiled locally into src/generated via `make protos`.
+ */
+
+syntax = "proto3";
+
+message LandingPoint {
+  double lat = 1;
+  double lon = 2;
+}
+
+message LandingPrediction {
+  uint32 based_on_packet_counter = 1;   // telemetry packet this estimate derives from
+  int64  computed_at_ms = 2;
+  bool   final = 3;                      // true once FlightState == LANDED and frozen
+  LandingPoint best_estimate = 4;
+  repeated LandingPoint dispersion_cloud = 5;   // sampled MC points (sparse, for map viz)
+  repeated LandingPoint ellipse_50 = 6;         // polygon vertices, 50% confidence
+  repeated LandingPoint ellipse_90 = 7;         // polygon vertices, 90% confidence
+  double   current_lat = 8;             // last-known position feeding the estimate
+  double   current_lon = 9;
+  string   current_source = 10;         // "srad" | "cots" — which stream drives the estimate
+  string   wind_source = 11;            // "live" for now; "static"/"manual" are future work
+  string   descent_model = 12;          // "constant" | "banded" | "fitted"
+
+  // Additive, beyond the original plan (kept after field 12 so the plan's numbers are stable):
+  double   current_alt_agl = 13;        // altitude AGL (m) the estimate was computed from
+  double   flight_state = 14;           // FlightState enum value driving the gate
+  string   status = 15;                 // "not_descending" | "predicting" | "final"
+}
+
+// Heartbeat-style frame published at low rate while idle so consumers can tell
+// "off" from "not connected" (see plan section 3, item 4).
+message PredictionConfig {
+  uint32 mc_iterations = 1;
+  double wind_speed_error_pct = 2;
+  double descent_rate_error_pct = 3;
+  string wind_source_mode = 4;          // "live" only for now
+  double wind_dir_error_deg = 5;        // additive: absolute jitter on wind direction
+  double recompute_min_interval_s = 6;  // additive: throttle floor for recompute
+}
