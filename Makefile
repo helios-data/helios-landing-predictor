@@ -7,7 +7,7 @@ deps:
 
 # Compile falcon-protos + protos-proposed -> src/generated (betterproto2, matches the SDK).
 protos:
-	uv run python scripts/gen_protos.py
+	mkdir -p src/generated && uv run protoc -I falcon-protos -I protos-proposed --python_betterproto2_out=src/generated $$(find falcon-protos protos-proposed -name '*.proto')
 
 clean-protos:
 	rm -rf src/generated

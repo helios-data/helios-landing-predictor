@@ -12,13 +12,18 @@ COPY pyproject.toml uv.lock ./
 COPY helios-python-sdk/ ./helios-python-sdk/
 COPY falcon-protos/ ./falcon-protos/
 COPY protos-proposed/ ./protos-proposed/
-COPY scripts/ ./scripts/
 
 RUN uv sync --frozen --extra dev --no-install-project
 
-# Compile protobufs into src/generated.
+# Compile protobufs into src/generated (betterproto2, matches the SDK).
 COPY src/ ./src/
-RUN uv run python scripts/gen_protos.py
+RUN if [ -f falcon-protos/TelemetryPacket.proto ]; then \
+      mkdir -p src/generated && \
+      uv run protoc \
+        -I falcon-protos -I protos-proposed \
+        --python_betterproto2_out=src/generated \
+        $(find falcon-protos protos-proposed -name '*.proto'); \
+    else echo "protos not compiled (submodule absent) — STANDALONE only"; fi
 
 # Remaining runtime files. The mission config is bind-mounted at runtime by the launcher
 # (config.json volumes -> /app/config/rocket_config.json), so it is NOT copied here.
