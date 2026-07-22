@@ -4,6 +4,13 @@ FROM python:3.13-slim
 # uv for dependency management (matches sibling repos).
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    protobuf-compiler \
+    libprotobuf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # protoc toolchain comes in via the dev dependency group (grpcio-tools ships protoc).
 WORKDIR /app
 
