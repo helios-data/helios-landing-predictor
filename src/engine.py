@@ -9,6 +9,7 @@ fixes and flight states directly.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from src.config import PredictionConfig
 from src.descent_model import DescentModel, RocketConfig
@@ -39,6 +40,9 @@ class PredictionEngine:
         self.descent_model = DescentModel(rocket, mode=descent_mode)
         self.standalone = standalone
         self.wind_source: WindSource | None = None
+        # Operator manual wind override (speed_ms, met FROM deg), set from a
+        # LandingConfig command; None means use the configured source.
+        self.manual_wind: tuple[float, float] | None = None
         self.frozen = False
         self._final_published = False
 
@@ -66,11 +70,38 @@ class PredictionEngine:
             self.wind_source = LiveWindSource(wlat, wlon)
 
     async def _wind_profile(self, lat: float, lon: float) -> WindProfile:
+        # Manual override wins over everything (incl. standalone), so an operator
+        # can pin the wind for testing or when the live source is unavailable.
+        if self.config.wind_source_mode == "manual" and self.manual_wind is not None:
+            speed, direction = self.manual_wind
+            return WindProfile.uniform(speed, direction, source="manual")
         if self.standalone or self.config.wind_source_mode != "live":
             return WindProfile.calm(source="standalone" if self.standalone else "disabled")
         self._ensure_wind_source(lat, lon)
         assert self.wind_source is not None
         return await self.wind_source.get_profile()
+
+    def apply_landing_config(
+        self, mode: str, wind_speed_ms: float, wind_dir_deg: float
+    ) -> None:
+        """Apply an operator wind override (LandingConfig from mission-control).
+
+        ``"manual"`` pins the wind to the entered speed + meteorological FROM
+        direction; ``"live"`` hands wind selection back to the live source. The
+        mode is stored on the config so ``_wind_profile`` picks it up on the next
+        recompute, and the next published prediction echoes it back
+        (``wind_source == "manual"``).
+        """
+        mode = mode or "live"
+        self.manual_wind = (
+            (float(wind_speed_ms), float(wind_dir_deg)) if mode == "manual" else None
+        )
+        self.config = replace(self.config, wind_source_mode=mode)
+        if mode != "live":
+            self.wind_source = None  # drop the cache so a switch back to live refetches
+        logger.info(
+            "landing config applied: wind_source_mode=%s manual_wind=%s", mode, self.manual_wind
+        )
 
     # --- compute ---------------------------------------------------------------------------
     def idle_frame(self, flight_state: int) -> LandingPrediction:

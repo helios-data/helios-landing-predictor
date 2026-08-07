@@ -58,6 +58,8 @@ def build_prediction(
         current_alt_agl=current_alt_agl_m,
         flight_state=float(flight_state),
         status=STATUS_FINAL if final else STATUS_PREDICTING,
+        wind_speed_ms=result.wind_speed_ms,
+        wind_dir_deg=result.wind_dir_deg,
     )
 
 

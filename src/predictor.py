@@ -35,6 +35,8 @@ class PredictionResult:
     ellipse_90: list[tuple[float, float]]
     descent_model: str
     wind_source: str
+    wind_speed_ms: float = 0.0                    # representative wind feeding the estimate
+    wind_dir_deg: float = 0.0                     # meteorological, direction it comes FROM
     drift_east_m: float = 0.0                     # deterministic drift, for diagnostics
     drift_north_m: float = 0.0
     metadata: dict = field(default_factory=dict)
@@ -91,6 +93,12 @@ def predict(
     """Compute the best-estimate landing point and Monte-Carlo dispersion ellipses."""
     wind_source = getattr(wind_profile, "source", "unknown")
 
+    # Representative wind for display: the profile sampled at the current altitude
+    # (what the rocket is descending through now). Speed m/s, met FROM direction.
+    rep_speed, rep_dir = wind_profile.sample(np.array([max(altitude_agl_m, 0.0)]))
+    wind_speed_ms = float(rep_speed[0])
+    wind_dir_deg = float(rep_dir[0])
+
     # Already on the ground (or below): landing point is the current point.
     if altitude_agl_m <= 0.5:
         pt = (current_lat, current_lon)
@@ -101,6 +109,8 @@ def predict(
             ellipse_90=[pt],
             descent_model=descent_model.mode,
             wind_source=wind_source,
+            wind_speed_ms=wind_speed_ms,
+            wind_dir_deg=wind_dir_deg,
         )
 
     steps = max(2, int(config.integration_steps))
@@ -157,6 +167,8 @@ def predict(
         ellipse_90=list(zip(lat90.tolist(), lon90.tolist(), strict=True)),
         descent_model=descent_model.mode,
         wind_source=wind_source,
+        wind_speed_ms=wind_speed_ms,
+        wind_dir_deg=wind_dir_deg,
         drift_east_m=east_nom,
         drift_north_m=north_nom,
         metadata={"mc_iterations": k, "integration_steps": steps},

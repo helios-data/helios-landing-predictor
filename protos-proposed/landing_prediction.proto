@@ -30,6 +30,14 @@ message LandingPrediction {
   double   current_alt_agl = 13;        // altitude AGL (m) the estimate was computed from
   double   flight_state = 14;           // FlightState enum value driving the gate
   string   status = 15;                 // "not_descending" | "predicting" | "final"
+
+  // The wind actually feeding this estimate, so consumers can display it (not
+  // just the wind_source tag). Under a manual override (see LandingConfig) these
+  // echo the operator's entered values; otherwise they are the live wind sampled
+  // at the current altitude. wind_dir_deg is the meteorological direction the
+  // wind comes FROM (0 = N, 90 = E), degrees true.
+  double   wind_speed_ms = 16;
+  double   wind_dir_deg = 17;
 }
 
 // Heartbeat-style frame published at low rate while idle so consumers can tell
@@ -41,4 +49,18 @@ message PredictionConfig {
   string wind_source_mode = 4;          // "live" only for now
   double wind_dir_error_deg = 5;        // additive: absolute jitter on wind direction
   double recompute_min_interval_s = 6;  // additive: throttle floor for recompute
+}
+
+// Operator-issued configuration, published by mission-control
+// (Helios.Services.Mission_Control) on the `landing_config` event; this node
+// subscribes to it. Today it carries only the wind override: when
+// wind_source_mode == "manual" use the wind_speed_ms / wind_dir_deg below instead
+// of the live source, and echo them back in LandingPrediction (wind_source =
+// "manual"). "live" restores the live wind source.
+message LandingConfig {
+  int64  issued_at_ms = 1;
+  string operator = 2;
+  string wind_source_mode = 3;   // "live" | "manual"
+  double wind_speed_ms = 4;      // manual wind speed (m/s), honored when mode == "manual"
+  double wind_dir_deg = 5;       // manual wind FROM direction (deg true), mode == "manual"
 }

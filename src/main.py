@@ -23,6 +23,7 @@ import time
 from src.config import PredictionConfig
 from src.descent_model import RocketConfig
 from src.engine import PredictionEngine
+from src.generated import LandingConfig
 from src.generated import PredictionConfig as PredictionConfigProto
 from src.helios_bridge import HeliosBridge
 from src.publisher import NODE_ADDRESS, Publisher
@@ -31,6 +32,9 @@ logger = logging.getLogger("landing_predictor")
 
 IDLE_HEARTBEAT_S = 5.0
 CONFIG_EVENT = "config"
+# Operator wind override from mission-control (Helios.Services.Mission_Control),
+# published on this node's own address. See LandingConfig in the proto.
+LANDING_CONFIG_EVENT = "landing_config"
 
 
 def _setup_logging() -> None:
@@ -93,6 +97,42 @@ async def config_loop(client, engine: PredictionEngine, publisher: Publisher) ->
             raise
         except Exception as exc:
             logger.warning("config subscription dropped: %s; retry in %.1fs", exc, backoff)
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 30.0)
+
+
+async def landing_config_loop(client, engine: PredictionEngine) -> None:
+    """Apply operator wind overrides (LandingConfig) from mission-control.
+
+    Subscribes to `landing_config` on this node's own address; each message sets
+    or clears the manual wind on the engine. No ack is published — mission-control
+    reads the result back from the next LandingPrediction (which carries the wind
+    and wind_source="manual"). Isolated, self-retrying loop so a missing publisher
+    never tears down prediction.
+    """
+    backoff = 1.0
+    while True:
+        try:
+            async with client.subscribe_event(
+                address=NODE_ADDRESS, event_name=LANDING_CONFIG_EVENT
+            ) as events:
+                backoff = 1.0
+                async for ev in events:
+                    if ev is None or not ev.data:
+                        continue
+                    try:
+                        cfg = LandingConfig.parse(ev.data)
+                        engine.apply_landing_config(
+                            cfg.wind_source_mode or "live",
+                            float(cfg.wind_speed_ms),
+                            float(cfg.wind_dir_deg),
+                        )
+                    except Exception as exc:
+                        logger.warning("bad LandingConfig command: %s", exc)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("landing_config subscription dropped: %s; retry in %.1fs", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 30.0)
 
@@ -197,6 +237,7 @@ async def async_main() -> None:
                 asyncio.create_task(bridge.run()),
                 asyncio.create_task(prediction_loop(bridge, engine, publisher)),
                 asyncio.create_task(config_loop(client, engine, publisher)),
+                asyncio.create_task(landing_config_loop(client, engine)),
             ]
             if health_task:
                 tasks.append(health_task)

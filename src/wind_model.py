@@ -47,6 +47,22 @@ class WindProfile:
             source=source,
         )
 
+    @classmethod
+    def uniform(
+        cls, speed_ms: float, direction_deg: float, source: str = "manual"
+    ) -> WindProfile:
+        """Constant wind at all altitudes — the operator's manual override.
+
+        ``direction_deg`` is meteorological (the direction the wind blows FROM),
+        matching a live profile so the drift math downstream is identical.
+        """
+        return cls(
+            altitudes_agl_m=np.array([0.0, 5000.0]),
+            speed_ms=np.array([float(speed_ms), float(speed_ms)]),
+            direction_deg=np.array([float(direction_deg), float(direction_deg)]),
+            source=source,
+        )
+
     def sample(self, altitudes_agl_m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Interpolate (speed, direction_deg) to the given altitudes, clamped at both ends.
 
